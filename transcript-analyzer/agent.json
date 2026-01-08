@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "agent_id": "transcript-analyzer",
+  "version": "1.1.0",
+  "name": "Transcript Analyzer",
+  "description": "Analyzes podcast transcripts to extract structured summaries, verbatim quotes, guest information, and voice patterns for downstream processing.",
+
+  "role": "subagent",
+  "parent_agent": "brighter-together-packager",
+
+  "routing": {
+    "triggers": ["analyze transcript", "extract transcript data"],
+    "keywords": ["transcript", "analyze", "extract", "summary"],
+    "priority": 5
+  },
+
+  "capabilities": {
+    "input_types": ["google_drive_folder_link", "google_doc_link"],
+    "output_types": ["structured_json"],
+    "requires_user_input": false,
+    "multi_turn": false,
+    "stateless": true
+  },
+
+  "tools_required": [
+    "mcp__google-workspace__list_drive_items",
+    "mcp__google-workspace__get_doc_content"
+  ],
+
+  "mcp_servers": ["google-workspace"],
+
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "folder_id": {
+        "type": "string",
+        "description": "Google Drive folder ID containing the transcript"
+      },
+      "document_id": {
+        "type": "string",
+        "description": "Direct Google Doc ID if folder_id not provided"
+      }
+    },
+    "oneOf": [
+      {"required": ["folder_id"]},
+      {"required": ["document_id"]}
+    ]
+  },
+
+  "output_schema": {
+    "type": "object",
+    "required": ["guest_info", "key_themes", "quote_bank", "pain_points", "guest_voice_profile", "episode_metadata"],
+    "properties": {
+      "guest_info": {
+        "type": "object",
+        "required": ["full_name"],
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "description": "Guest's full name exactly as introduced"
+          },
+          "credentials": {
+            "type": "string",
+            "description": "Professional credentials (PhD, LCSW, etc.)"
+          },
+          "job_title": {
+            "type": "string",
+            "description": "Current job title"
+          },
+          "organization": {
+            "type": "string",
+            "description": "Current employer or organization"
+          },
+          "expertise_areas": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Areas of expertise mentioned"
+          }
+        }
+      },
+      "key_themes": {
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 5,
+        "items": {
+          "type": "object",
+          "required": ["theme", "description", "transcript_evidence"],
+          "properties": {
+            "theme": {
+              "type": "string",
+              "description": "Name of the theme"
+            },
+            "description": {
+              "type": "string",
+              "description": "1-2 sentence description"
+            },
+            "transcript_evidence": {
+              "type": "string",
+              "description": "Brief evidence from transcript"
+            }
+          }
+        }
+      },
+      "quote_bank": {
+        "type": "array",
+        "minItems": 8,
+        "maxItems": 12,
+        "items": {
+          "type": "object",
+          "required": ["quote", "speaker", "context", "emotional_tone", "marketing_potential"],
+          "properties": {
+            "quote": {
+              "type": "string",
+              "description": "Verbatim quote - exact words, no paraphrasing"
+            },
+            "speaker": {
+              "type": "string",
+              "description": "Who said this quote"
+            },
+            "context": {
+              "type": "string",
+              "description": "What led to this statement"
+            },
+            "emotional_tone": {
+              "type": "string",
+              "description": "Emotional quality (inspiring, challenging, vulnerable, etc.)"
+            },
+            "marketing_potential": {
+              "type": "string",
+              "enum": ["high", "medium", "low"],
+              "description": "Potential for marketing use"
+            }
+          }
+        }
+      },
+      "pain_points": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["pain_point", "target_audience"],
+          "properties": {
+            "pain_point": {
+              "type": "string",
+              "description": "The specific pain point"
+            },
+            "target_audience": {
+              "type": "string",
+              "description": "Who experiences this most"
+            },
+            "quote_reference": {
+              "type": "string",
+              "description": "Reference to supporting quote"
+            }
+          }
+        }
+      },
+      "transformation_stories": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["before_state", "after_state", "key_insight"],
+          "properties": {
+            "before_state": {
+              "type": "string",
+              "description": "Situation before transformation"
+            },
+            "after_state": {
+              "type": "string",
+              "description": "Situation after transformation"
+            },
+            "key_insight": {
+              "type": "string",
+              "description": "What caused the change"
+            }
+          }
+        }
+      },
+      "guest_voice_profile": {
+        "type": "object",
+        "required": ["tone", "vocabulary_level", "energy_level"],
+        "properties": {
+          "tone": {
+            "type": "string",
+            "description": "Overall tone (formal, conversational, passionate, etc.)"
+          },
+          "vocabulary_level": {
+            "type": "string",
+            "enum": ["academic", "accessible", "mixed"],
+            "description": "Language complexity level"
+          },
+          "sentence_patterns": {
+            "type": "string",
+            "description": "How they structure sentences"
+          },
+          "energy_level": {
+            "type": "string",
+            "enum": ["calm", "moderate", "enthusiastic", "intense"],
+            "description": "Energy in delivery"
+          },
+          "notable_phrases": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Phrases they repeat or emphasize"
+          }
+        }
+      },
+      "episode_metadata": {
+        "type": "object",
+        "required": ["primary_topic"],
+        "properties": {
+          "estimated_duration": {
+            "type": "string",
+            "description": "Estimated episode length"
+          },
+          "primary_topic": {
+            "type": "string",
+            "description": "Main topic of episode"
+          },
+          "secondary_topics": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Additional topics covered"
+          }
+        }
+      }
+    }
+  },
+
+  "system_prompt_file": "system_prompt.txt",
+
+  "middleware": {
+    "tool_retry": {
+      "max_retries": 2,
+      "backoff_factor": 2.0,
+      "initial_delay_ms": 1000,
+      "retry_on": ["network_error", "timeout", "rate_limit"],
+      "on_failure": "return_message"
+    }
+  },
+
+  "error_handling": {
+    "on_tool_failure": "return_message",
+    "on_validation_error": "retry_with_feedback",
+    "max_validation_retries": 2
+  },
+
+  "constraints": {
+    "quotes_must_be_verbatim": true,
+    "minimum_quotes": 8,
+    "minimum_themes": 3,
+    "maximum_themes": 5
+  },
+
+  "metadata": {
+    "author": "Lighthouse Therapy",
+    "created": "2025-01-08",
+    "last_updated": "2025-01-08",
+    "langchain_version": "1.0",
+    "schema_version": "2020-12"
+  }
+}

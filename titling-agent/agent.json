@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "agent_id": "titling-agent",
+  "version": "1.1.0",
+  "name": "Podcast Title Strategist",
+  "description": "Generates research-backed podcast titles using trend data, marketing psychology, and platform-specific optimization strategies.",
+
+  "role": "subagent",
+  "parent_agent": "brighter-together-packager",
+
+  "routing": {
+    "triggers": ["generate titles", "create podcast title", "title options"],
+    "keywords": ["title", "headline", "hook", "marketing"],
+    "priority": 5
+  },
+
+  "capabilities": {
+    "input_types": ["structured_json"],
+    "output_types": ["structured_json"],
+    "requires_user_input": false,
+    "multi_turn": false,
+    "stateless": true
+  },
+
+  "tools_required": [
+    "web_search"
+  ],
+
+  "mcp_servers": [],
+
+  "input_schema": {
+    "type": "object",
+    "required": ["transcript_summary", "trend_research"],
+    "properties": {
+      "transcript_summary": {
+        "type": "object",
+        "description": "Output from Transcript Analyzer agent",
+        "required": ["guest_info", "key_themes", "quote_bank"],
+        "properties": {
+          "guest_info": {
+            "type": "object",
+            "properties": {
+              "full_name": {"type": "string"},
+              "credentials": {"type": "string"},
+              "expertise_areas": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "key_themes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "theme": {"type": "string"},
+                "description": {"type": "string"}
+              }
+            }
+          },
+          "quote_bank": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "quote": {"type": "string"},
+                "marketing_potential": {"type": "string"}
+              }
+            }
+          },
+          "transformation_stories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key_insight": {"type": "string"}
+              }
+            }
+          }
+        }
+      },
+      "trend_research": {
+        "type": "object",
+        "description": "Output from Trend Researcher agent",
+        "required": ["ranked_transcript_data", "content_strategy_recommendations"],
+        "properties": {
+          "ranked_transcript_data": {
+            "type": "object",
+            "properties": {
+              "themes_by_trend_potential": {"type": "array"},
+              "quotes_by_trend_potential": {"type": "array"},
+              "pain_points_by_trend_potential": {"type": "array"}
+            }
+          },
+          "content_strategy_recommendations": {
+            "type": "object",
+            "properties": {
+              "primary_angle": {"type": "string"},
+              "hooks_to_consider": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "output_schema": {
+    "type": "object",
+    "required": ["titles", "title_strategy_research", "recommendation"],
+    "properties": {
+      "titles": {
+        "type": "array",
+        "minItems": 5,
+        "maxItems": 5,
+        "items": {
+          "type": "object",
+          "required": ["rank", "title", "strategy", "trend_alignment", "rationale"],
+          "properties": {
+            "rank": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5,
+              "description": "Ranking position from 1 (best) to 5"
+            },
+            "title": {
+              "type": "string",
+              "description": "The actual title text"
+            },
+            "strategy": {
+              "type": "string",
+              "enum": ["FOMO", "Reversal", "Challenge", "Curiosity Gap", "Authority", "Transformation", "Controversy"],
+              "description": "Primary psychological strategy used"
+            },
+            "platform_optimization": {
+              "type": "object",
+              "properties": {
+                "best_for": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": ["LinkedIn", "TikTok", "Instagram", "Facebook", "YouTube", "Email", "Cross-Platform"]
+                  }
+                },
+                "considerations": {
+                  "type": "string",
+                  "description": "Platform-specific notes"
+                }
+              }
+            },
+            "trend_alignment": {
+              "type": "object",
+              "required": ["score"],
+              "properties": {
+                "score": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "description": "How well title aligns with current trends"
+                },
+                "matching_trends": {
+                  "type": "array",
+                  "items": {"type": "string"}
+                }
+              }
+            },
+            "psychological_hooks": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Specific psychological triggers in the title"
+            },
+            "rationale": {
+              "type": "string",
+              "description": "Detailed explanation of why this title works"
+            },
+            "potential_risks": {
+              "type": "string",
+              "description": "Any risks or considerations with this title"
+            }
+          }
+        }
+      },
+      "title_strategy_research": {
+        "type": "object",
+        "required": ["searches_performed", "key_findings"],
+        "properties": {
+          "searches_performed": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Web searches conducted for title strategy research"
+          },
+          "key_findings": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Key insights from research"
+          },
+          "current_best_practices": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Current best practices for titles"
+          }
+        }
+      },
+      "recommendation": {
+        "type": "object",
+        "required": ["top_choice", "reasoning"],
+        "properties": {
+          "top_choice": {
+            "type": "string",
+            "description": "The recommended title"
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "Why this title is recommended"
+          }
+        }
+      }
+    }
+  },
+
+  "system_prompt_file": "system_prompt.txt",
+
+  "middleware": {
+    "tool_retry": {
+      "max_retries": 3,
+      "backoff_factor": 2.0,
+      "initial_delay_ms": 1000,
+      "retry_on": ["network_error", "timeout", "rate_limit"],
+      "on_failure": "return_message"
+    }
+  },
+
+  "error_handling": {
+    "on_tool_failure": "return_message",
+    "on_validation_error": "retry_with_feedback",
+    "max_validation_retries": 2
+  },
+
+  "title_strategies": {
+    "FOMO": {
+      "description": "Fear of missing out - what others know that you don't",
+      "examples": ["What top districts know that yours doesn't", "The secret successful principals share"]
+    },
+    "Reversal": {
+      "description": "Challenge conventional wisdom or expectations",
+      "examples": ["Stop trying to fix your burned-out teachers", "Why the best SPED directors stopped multitasking"]
+    },
+    "Challenge": {
+      "description": "Directly challenge the reader's current approach",
+      "examples": ["The mistake every principal makes in January", "Why your retention strategy is backfiring"]
+    },
+    "Curiosity Gap": {
+      "description": "Create information gap that demands closure",
+      "examples": ["The one question that changed my leadership", "What happened when I stopped checking email"]
+    },
+    "Authority": {
+      "description": "Lead with credibility and expertise",
+      "examples": ["20-year veteran reveals...", "How Dr. Smith transformed her district"]
+    },
+    "Transformation": {
+      "description": "Promise specific before/after change",
+      "examples": ["From 40% turnover to 85% retention in one year", "How one district cut burnout by half"]
+    },
+    "Controversy": {
+      "description": "Take a bold stance that invites debate",
+      "examples": ["PD days are a waste of time (here's what works)", "Why I stopped requiring lesson plans"]
+    }
+  },
+
+  "constraints": {
+    "must_generate": 5,
+    "must_research_first": true,
+    "no_clickbait_without_substance": true,
+    "must_connect_to_content": true,
+    "each_title_different_strategy": true,
+    "title_length": {
+      "optimal_characters": {"min": 40, "max": 80},
+      "front_load_hook": true
+    }
+  },
+
+  "metadata": {
+    "author": "Lighthouse Therapy",
+    "created": "2025-01-08",
+    "last_updated": "2025-01-08",
+    "langchain_version": "1.0",
+    "schema_version": "2020-12"
+  }
+}

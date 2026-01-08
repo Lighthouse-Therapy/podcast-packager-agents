@@ -1,0 +1,324 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "agent_id": "trend-researcher",
+  "version": "1.1.1",
+  "name": "Social Media Trend Researcher",
+  "description": "Researches current social media trends across all major platforms to rank transcript data by viral potential and algorithm favorability.",
+
+  "role": "subagent",
+  "parent_agent": "brighter-together-packager",
+
+  "routing": {
+    "triggers": ["research trends", "social media analysis", "trend ranking"],
+    "keywords": ["trends", "viral", "algorithm", "social media", "research"],
+    "priority": 5
+  },
+
+  "capabilities": {
+    "input_types": ["structured_json"],
+    "output_types": ["structured_json"],
+    "requires_user_input": false,
+    "multi_turn": false,
+    "stateless": true
+  },
+
+  "tools_required": [
+    "web_search"
+  ],
+
+  "mcp_servers": [],
+
+  "input_schema": {
+    "type": "object",
+    "required": ["transcript_summary"],
+    "properties": {
+      "transcript_summary": {
+        "type": "object",
+        "description": "Output from Transcript Analyzer agent",
+        "required": ["guest_info", "key_themes", "quote_bank", "pain_points"],
+        "properties": {
+          "guest_info": {
+            "type": "object",
+            "properties": {
+              "full_name": {"type": "string"},
+              "expertise_areas": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "key_themes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "theme": {"type": "string"},
+                "description": {"type": "string"}
+              }
+            }
+          },
+          "quote_bank": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "quote": {"type": "string"},
+                "marketing_potential": {"type": "string"}
+              }
+            }
+          },
+          "pain_points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pain_point": {"type": "string"},
+                "target_audience": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "output_schema": {
+    "type": "object",
+    "required": ["research_timestamp", "platforms_researched", "trending_topics", "ranked_transcript_data", "content_strategy_recommendations"],
+    "properties": {
+      "research_timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "description": "ISO8601 datetime of when research was conducted"
+      },
+      "platforms_researched": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": ["LinkedIn", "TikTok", "Instagram", "Facebook", "YouTube"]
+        },
+        "description": "List of platforms researched"
+      },
+      "trending_topics": {
+        "type": "object",
+        "properties": {
+          "sped_education": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["topic", "platform", "trend_strength", "evidence"],
+              "properties": {
+                "topic": {"type": "string", "description": "The trending topic"},
+                "platform": {"type": "string", "description": "Platform where trending"},
+                "trend_strength": {
+                  "type": "string",
+                  "enum": ["high", "medium", "low"],
+                  "description": "Strength of the trend"
+                },
+                "evidence": {"type": "string", "description": "Evidence from research"}
+              }
+            }
+          },
+          "k12_leadership": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["topic", "platform", "trend_strength", "evidence"],
+              "properties": {
+                "topic": {"type": "string", "description": "The trending topic"},
+                "platform": {"type": "string", "description": "Platform where trending"},
+                "trend_strength": {
+                  "type": "string",
+                  "enum": ["high", "medium", "low"],
+                  "description": "Strength of the trend"
+                },
+                "evidence": {"type": "string", "description": "Evidence from research"}
+              }
+            }
+          },
+          "education_viral": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["topic", "platform", "trend_strength", "evidence"],
+              "properties": {
+                "topic": {"type": "string", "description": "The trending topic"},
+                "platform": {"type": "string", "description": "Platform where trending"},
+                "trend_strength": {
+                  "type": "string",
+                  "enum": ["high", "medium", "low"],
+                  "description": "Strength of the trend"
+                },
+                "evidence": {"type": "string", "description": "Evidence from research"}
+              }
+            }
+          },
+          "national_relevance": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["topic", "platform", "trend_strength", "evidence"],
+              "properties": {
+                "topic": {"type": "string", "description": "The trending topic"},
+                "platform": {"type": "string", "description": "Platform where trending"},
+                "trend_strength": {
+                  "type": "string",
+                  "enum": ["high", "medium", "low"],
+                  "description": "Strength of the trend"
+                },
+                "evidence": {"type": "string", "description": "Evidence from research"}
+              }
+            }
+          }
+        }
+      },
+      "ranked_transcript_data": {
+        "type": "object",
+        "required": ["themes_by_trend_potential", "quotes_by_trend_potential", "pain_points_by_trend_potential"],
+        "properties": {
+          "themes_by_trend_potential": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["theme", "trend_score", "rationale"],
+              "properties": {
+                "theme": {"type": "string"},
+                "trend_score": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "description": "Score from 1-10 based on trend alignment"
+                },
+                "matching_trends": {
+                  "type": "array",
+                  "items": {"type": "string"}
+                },
+                "rationale": {"type": "string"}
+              }
+            }
+          },
+          "quotes_by_trend_potential": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["quote", "trend_score", "rationale"],
+              "properties": {
+                "quote": {"type": "string"},
+                "trend_score": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "platform_fit": {
+                  "type": "object",
+                  "properties": {
+                    "linkedin": {"type": "string"},
+                    "tiktok": {"type": "string"},
+                    "instagram": {"type": "string"},
+                    "facebook": {"type": "string"}
+                  }
+                },
+                "rationale": {"type": "string"}
+              }
+            }
+          },
+          "pain_points_by_trend_potential": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["pain_point", "trend_score", "rationale"],
+              "properties": {
+                "pain_point": {"type": "string"},
+                "trend_score": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "audience_resonance": {"type": "string"},
+                "rationale": {"type": "string"}
+              }
+            }
+          }
+        }
+      },
+      "content_strategy_recommendations": {
+        "type": "object",
+        "required": ["primary_angle"],
+        "properties": {
+          "primary_angle": {
+            "type": "string",
+            "description": "Strongest content angle based on trends"
+          },
+          "secondary_angles": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "hooks_to_consider": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "hashtag_opportunities": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "timing_considerations": {
+            "type": "string",
+            "description": "Any timing-related recommendations"
+          }
+        }
+      },
+      "competitive_insights": {
+        "type": "object",
+        "properties": {
+          "similar_viral_content": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "differentiation_opportunities": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+
+  "system_prompt_file": "system_prompt.txt",
+
+  "middleware": {
+    "tool_retry": {
+      "max_retries": 3,
+      "backoff_factor": 2.0,
+      "initial_delay_ms": 1000,
+      "retry_on": ["network_error", "timeout", "rate_limit"],
+      "on_failure": "return_message"
+    }
+  },
+
+  "error_handling": {
+    "on_tool_failure": "return_message",
+    "on_search_no_results": "continue_with_note",
+    "on_validation_error": "retry_with_feedback",
+    "max_validation_retries": 2
+  },
+
+  "research_parameters": {
+    "platforms": ["LinkedIn", "TikTok", "Instagram", "Facebook", "YouTube"],
+    "sectors": ["K-12 education", "special education", "school administration", "teacher wellness"],
+    "search_depth": "comprehensive",
+    "recency_preference": "last 30 days",
+    "minimum_searches": 8
+  },
+
+  "constraints": {
+    "minimum_searches": 8,
+    "must_cover_all_platforms": true,
+    "evidence_required": true,
+    "cite_sources": true
+  },
+
+  "metadata": {
+    "author": "Lighthouse Therapy",
+    "created": "2025-01-08",
+    "last_updated": "2025-01-08",
+    "langchain_version": "1.0",
+    "schema_version": "2020-12"
+  }
+}

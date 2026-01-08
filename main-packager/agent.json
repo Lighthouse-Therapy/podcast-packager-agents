@@ -1,0 +1,380 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "agent_id": "brighter-together-packager-v2",
+  "version": "2.1.0",
+  "name": "Brighter Together Packager",
+  "description": "Main orchestrator for podcast packaging. Coordinates subagents, handles user interaction for title selection, and generates final marketing package.",
+
+  "role": "supervisor",
+  "architecture": "subagents",
+
+  "subagents": {
+    "transcript-analyzer": {
+      "agent_id": "transcript-analyzer",
+      "invocation_method": "tool_call",
+      "tool_name": "task",
+      "description": "Analyzes transcript and returns structured summary"
+    },
+    "trend-researcher": {
+      "agent_id": "trend-researcher",
+      "invocation_method": "tool_call",
+      "tool_name": "task",
+      "description": "Researches social media trends and ranks transcript data"
+    },
+    "titling-agent": {
+      "agent_id": "titling-agent",
+      "invocation_method": "tool_call",
+      "tool_name": "task",
+      "description": "Generates 5 research-backed title options"
+    }
+  },
+
+  "routing": {
+    "triggers": [
+      "package podcast",
+      "podcast packaging",
+      "brighter together",
+      "episode folder",
+      "transcript to marketing",
+      "create social posts for podcast",
+      "podcast episode titles"
+    ],
+    "keywords": ["podcast", "transcript", "episode", "brighter together", "packaging", "social posts"],
+    "priority": 10
+  },
+
+  "capabilities": {
+    "input_types": ["google_drive_folder_link", "google_doc_link", "text"],
+    "output_types": ["google_docs", "google_drive_folders"],
+    "requires_user_input": true,
+    "multi_turn": true,
+    "stateful": true,
+    "supports_human_in_the_loop": true
+  },
+
+  "tools_required": [
+    "mcp__google-workspace__list_drive_items",
+    "mcp__google-workspace__get_doc_content",
+    "mcp__google-workspace__create_doc",
+    "mcp__google-workspace__create_drive_file",
+    "mcp__google-workspace__update_drive_file",
+    "mcp__google-workspace__create_drive_shortcut",
+    "mcp__google-workspace__delete_drive_shortcut",
+    "mcp__google-workspace__list_drive_shortcuts",
+    "task"
+  ],
+
+  "mcp_servers": ["google-workspace-extended"],
+
+  "mcp_server_config": {
+    "google-workspace-extended": {
+      "source": "fork of taylorwilsdon/google_workspace_mcp",
+      "path": "/tmp/podcast-agents/google-workspace-mcp-extended",
+      "added_tools": ["create_drive_shortcut", "delete_drive_shortcut", "list_drive_shortcuts"]
+    }
+  },
+
+  "context": {
+    "user_email_source": "session.user.email",
+    "static_context": {
+      "brand_voice": "EMBEDDED - see system_prompt.txt",
+      "persona_susan": "EMBEDDED - see system_prompt.txt",
+      "output_formats": "EMBEDDED - see system_prompt.txt"
+    },
+    "runtime_context": {
+      "folder_id": "Stored after Phase 1",
+      "transcript_summary": "Stored after Phase 2",
+      "trend_research": "Stored after Phase 3",
+      "title_options": "Stored after Phase 4",
+      "selected_title": "Stored after user selection"
+    }
+  },
+
+  "system_prompt_file": "system_prompt.txt",
+
+  "system_prompt_config": {
+    "anthropic": {
+      "cache_control": {
+        "type": "ephemeral"
+      }
+    },
+    "static_content_caching": true,
+    "cache_static_sections": [
+      "brand_voice",
+      "persona_susan",
+      "output_formats",
+      "workflow_instructions"
+    ]
+  },
+
+  "checkpointer": {
+    "type": "memory",
+    "config": {
+      "persist_between_turns": true,
+      "save_on_interrupt": true
+    },
+    "alternatives": {
+      "postgres": {
+        "connection_string": "postgresql://...",
+        "table_name": "podcast_packager_checkpoints"
+      },
+      "sqlite": {
+        "path": "./checkpoints/packager.db"
+      }
+    }
+  },
+
+  "human_in_the_loop": {
+    "enabled": true,
+    "interrupt_on": {
+      "title_selection": {
+        "phase": "titles",
+        "trigger": "after_subagent_completion",
+        "allowed_decisions": ["approve", "edit", "reject"],
+        "prompt_template": "Here are 5 title options. Which would you like to use, or do you have another suggestion?",
+        "timeout_behavior": "wait_indefinitely"
+      }
+    },
+    "resume_behavior": {
+      "on_approve": "continue_with_selection",
+      "on_edit": "use_edited_value",
+      "on_reject": "regenerate_with_feedback"
+    }
+  },
+
+  "middleware": {
+    "tool_retry": {
+      "max_retries": 2,
+      "backoff_factor": 2.0,
+      "initial_delay_ms": 1000,
+      "retry_on": ["network_error", "timeout", "rate_limit"],
+      "on_failure": "return_message"
+    },
+    "subagent_middleware": {
+      "timeout_ms": 300000,
+      "on_subagent_failure": "return_error_to_user",
+      "retry_failed_subagents": true,
+      "max_subagent_retries": 1
+    }
+  },
+
+  "error_handling": {
+    "on_tool_failure": "return_message",
+    "on_subagent_failure": "report_and_offer_retry",
+    "on_validation_error": "retry_with_feedback",
+    "on_drive_access_denied": {
+      "message": "I don't have access to this folder. Please check sharing permissions and ensure the folder is accessible.",
+      "action": "halt_and_report"
+    },
+    "on_transcript_not_found": {
+      "message": "I couldn't find a transcript in this folder. Please provide a direct link to the transcript document.",
+      "action": "request_alternative_input"
+    },
+    "max_validation_retries": 2
+  },
+
+  "file_organization_spec": "file_organization.json",
+
+  "workflow": {
+    "phases": [
+      {
+        "id": "preflight",
+        "name": "Pre-flight Check",
+        "requires_user": false,
+        "executor": "main",
+        "description": "Detect if episode is new or already packaged by checking transcript location",
+        "outputs": ["packaging_status", "transcript_location"],
+        "branches": {
+          "new_episode": "input",
+          "already_packaged": "user_choice",
+          "no_transcript": "error"
+        }
+      },
+      {
+        "id": "user_choice",
+        "name": "Re-package Decision",
+        "requires_user": true,
+        "executor": "main",
+        "description": "Ask user if they want to re-package or cancel",
+        "outputs": ["user_decision"],
+        "branches": {
+          "cancel": "end",
+          "repackage": "archive"
+        }
+      },
+      {
+        "id": "archive",
+        "name": "Archive Previous Version",
+        "requires_user": false,
+        "executor": "main",
+        "description": "Move existing generated files to _Archive folder with date suffix",
+        "outputs": ["archived_files"],
+        "next": "input"
+      },
+      {
+        "id": "input",
+        "name": "Input & Discovery",
+        "requires_user": true,
+        "executor": "main",
+        "description": "Confirm transcript found, extract guest name",
+        "outputs": ["folder_id", "transcript_confirmed", "guest_name"],
+        "next": "analyze"
+      },
+      {
+        "id": "analyze",
+        "name": "Transcript Analysis",
+        "requires_user": false,
+        "executor": "subagent:transcript-analyzer",
+        "description": "Subagent reads and analyzes full transcript",
+        "inputs": ["folder_id"],
+        "outputs": ["transcript_summary"],
+        "next": "research"
+      },
+      {
+        "id": "research",
+        "name": "Trend Research",
+        "requires_user": false,
+        "executor": "subagent:trend-researcher",
+        "description": "Subagent researches social media trends and ranks data",
+        "inputs": ["transcript_summary"],
+        "outputs": ["trend_research"],
+        "next": "titles"
+      },
+      {
+        "id": "titles",
+        "name": "Title Generation",
+        "requires_user": true,
+        "executor": "subagent:titling-agent",
+        "description": "Subagent generates 5 titles, main agent presents to user for selection",
+        "inputs": ["transcript_summary", "trend_research"],
+        "outputs": ["title_options"],
+        "interrupt": {
+          "type": "human_approval",
+          "after": "subagent_completion",
+          "collect": "selected_title"
+        },
+        "next": "content"
+      },
+      {
+        "id": "content",
+        "name": "Content Creation",
+        "requires_user": false,
+        "executor": "main",
+        "description": "Main agent generates all package content using subagent outputs",
+        "inputs": ["transcript_summary", "trend_research", "selected_title"],
+        "outputs": ["episode_description", "lht_social_posts", "guest_social_posts"],
+        "next": "output"
+      },
+      {
+        "id": "output",
+        "name": "Google Drive Output",
+        "requires_user": false,
+        "executor": "main",
+        "description": "Create generated docs and folder structure",
+        "inputs": ["folder_id", "guest_name", "episode_description", "lht_social_posts", "guest_social_posts", "title_options"],
+        "outputs": ["created_files", "created_folders"],
+        "next": "organize"
+      },
+      {
+        "id": "organize",
+        "name": "File Organization",
+        "requires_user": false,
+        "executor": "main",
+        "description": "Move existing files to proper folders, move transcript to Full Length Assets, create shortcuts in Guest Package",
+        "inputs": ["folder_id", "guest_name", "created_files", "created_folders"],
+        "outputs": ["moved_files", "created_shortcuts"],
+        "next": "deliver"
+      },
+      {
+        "id": "deliver",
+        "name": "Delivery",
+        "requires_user": false,
+        "executor": "main",
+        "description": "Provide summary of all files created, moved, and organized",
+        "inputs": ["folder_id", "created_files", "created_folders", "moved_files", "created_shortcuts"],
+        "outputs": ["delivery_summary"],
+        "next": null
+      }
+    ],
+    "state_schema": {
+      "type": "object",
+      "properties": {
+        "folder_id": {"type": "string"},
+        "guest_name": {"type": "string"},
+        "packaging_status": {"type": "string", "enum": ["new_episode", "already_packaged", "no_transcript"]},
+        "transcript_location": {"type": "string", "enum": ["root", "full_length_assets"]},
+        "user_decision": {"type": "string", "enum": ["cancel", "repackage"]},
+        "archived_files": {"type": "array", "items": {"type": "string"}},
+        "transcript_summary": {"type": "object"},
+        "trend_research": {"type": "object"},
+        "title_options": {"type": "array"},
+        "selected_title": {"type": "object"},
+        "episode_description": {"type": "string"},
+        "lht_social_posts": {"type": "object"},
+        "guest_social_posts": {"type": "object"},
+        "created_files": {"type": "array"},
+        "created_folders": {"type": "array"},
+        "moved_files": {"type": "array"},
+        "created_shortcuts": {"type": "array"},
+        "current_phase": {"type": "string"}
+      }
+    }
+  },
+
+  "output_formats": {
+    "episode_description": {
+      "structure": [
+        "title_header",
+        "hook_opener",
+        "guest_introduction",
+        "takeaways_list",
+        "transformation_promise",
+        "call_to_action"
+      ]
+    },
+    "social_posts": {
+      "platforms": {
+        "linkedin": {"tone": "professional, authority", "length": "2-3 sentences", "hashtags": "1-2"},
+        "facebook": {"tone": "emotional, community", "length": "3-4 sentences", "hashtags": "2"},
+        "tiktok": {"tone": "punchy, hook-first", "length": "1-2 sentences", "hashtags": "3-5"},
+        "instagram": {"tone": "visual-friendly", "length": "2-3 sentences", "hashtags": "3-5"}
+      }
+    },
+    "drive_folder_structure": {
+      "root": "{Episode Folder}",
+      "files": [
+        "{Guest Name} - Episode Description",
+        "{Guest Name} - Title Options",
+        "{Guest Name} - LHT Social Posts"
+      ],
+      "folders": [
+        "Full Length Assets",
+        "Podcast Artwork",
+        "Social Assets",
+        "Guest Package - {Guest Name}",
+        "Guest Social Posts"
+      ]
+    }
+  },
+
+  "constraints": {
+    "no_emojis": true,
+    "no_asterisks": true,
+    "quotes_for_citations_only": true,
+    "target_persona": "Susan (45-55 K-12 administrator)",
+    "brand_voice": ["supportive", "bold", "professional", "hopeful"],
+    "mark_selected_title": true,
+    "all_content_ties_to_title": true
+  },
+
+  "metadata": {
+    "author": "Lighthouse Therapy",
+    "created": "2025-01-08",
+    "last_updated": "2025-01-08",
+    "architecture": "multi-subagent-supervisor",
+    "previous_version": "brighter-together-packager v4.0.0",
+    "langchain_version": "1.0",
+    "schema_version": "2020-12",
+    "deep_agents_compatible": true
+  }
+}

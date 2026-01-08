@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "description": "File organization rules for podcast episode packaging",
+
+  "preflight_check": {
+    "description": "Determine episode packaging status before processing",
+    "detection_rules": {
+      "new_episode": {
+        "condition": "transcript_pattern found in folder ROOT",
+        "transcript_patterns": ["*Transcript*", "*Notes*"],
+        "action": "proceed_with_packaging"
+      },
+      "already_packaged": {
+        "condition": "transcript_pattern found in 'Full Length Assets/' subfolder",
+        "action": "prompt_user_choice",
+        "user_options": [
+          {
+            "choice": "cancel",
+            "label": "Cancel - Do nothing",
+            "action": "end_workflow"
+          },
+          {
+            "choice": "repackage",
+            "label": "Re-package - Archive old and create new versions",
+            "action": "archive_and_repackage"
+          }
+        ]
+      },
+      "no_transcript": {
+        "condition": "transcript_pattern not found anywhere",
+        "action": "error",
+        "message": "No transcript found in this folder. Please provide a folder containing a transcript document."
+      }
+    }
+  },
+
+  "archive_strategy": {
+    "description": "Archive old generated files before re-packaging",
+    "archive_folder_name": "_Archive",
+    "archive_folder_location": "episode_root",
+    "naming_convention": "{original_name} ({YYYY-MM-DD})",
+    "files_to_archive": [
+      "*Episode Description*",
+      "*Title Options*",
+      "*LHT Social Posts*",
+      "*Guest Social Posts*"
+    ],
+    "preserve_originals": false
+  },
+
+  "file_patterns": {
+    "full_length_assets": {
+      "patterns": [
+        "*FULL PODCAST*.mp4",
+        "*FULL PODCAST*.MP4",
+        "*FULL PODCAST*.wav",
+        "*FULL PODCAST*.WAV",
+        "*FULL PODCAST*.mp3",
+        "*FULL PODCAST*.MP3"
+      ],
+      "destination": "Full Length Assets/"
+    },
+    "transcript": {
+      "patterns": ["*Transcript*", "*Notes*"],
+      "destination": "Full Length Assets/",
+      "move_after": "packaging_complete"
+    },
+    "social_shorts": {
+      "patterns": ["Short *.mp4", "Short *.MP4"],
+      "destination": "Social Assets/",
+      "variable_count": true
+    }
+  },
+
+  "generated_files": {
+    "episode_description": {
+      "name_template": "{guest_name} - Episode Description",
+      "type": "google_doc",
+      "location": "episode_root"
+    },
+    "title_options": {
+      "name_template": "{guest_name} - Title Options",
+      "type": "google_doc",
+      "location": "episode_root",
+      "mark_selected": true
+    },
+    "lht_social_posts": {
+      "name_template": "{guest_name} - LHT Social Posts",
+      "type": "google_doc",
+      "location": "episode_root"
+    },
+    "guest_social_posts": {
+      "name_template": "{guest_name} - Guest Social Posts",
+      "type": "google_doc",
+      "location": "Social Assets/"
+    }
+  },
+
+  "folder_structure": {
+    "created_by_agent": [
+      "Full Length Assets",
+      "Podcast Artwork",
+      "Social Assets",
+      "Guest Package - {guest_name}",
+      "_Archive"
+    ],
+    "purpose": {
+      "Full Length Assets": "Full podcast recordings (mp4, wav, mp3) and transcript",
+      "Podcast Artwork": "Episode thumbnails, guest headshots (graphics team)",
+      "Social Assets": "Short clips for social media, plus Guest Social Posts doc",
+      "Guest Package - {guest_name}": "Shortcuts only - guest access without delete rights",
+      "_Archive": "Previous versions of generated content (dated)"
+    }
+  },
+
+  "guest_package_shortcuts": {
+    "description": "Create shortcuts in Guest Package so guests can access but not delete originals",
+    "shortcuts_to_create": [
+      {
+        "target_pattern": "*FULL PODCAST*.mp3",
+        "shortcut_name": "{guest_name} - Full Episode (Audio)",
+        "location": "Guest Package - {guest_name}/"
+      },
+      {
+        "target_pattern": "*FULL PODCAST*.mp4",
+        "shortcut_name": "{guest_name} - Full Episode (Video)",
+        "location": "Guest Package - {guest_name}/"
+      },
+      {
+        "target_pattern": "Short *.mp4",
+        "shortcut_name": "Short {N}",
+        "location": "Guest Package - {guest_name}/",
+        "variable_count": true
+      },
+      {
+        "target_file": "generated:episode_description",
+        "shortcut_name": "{guest_name} - Episode Description",
+        "location": "Guest Package - {guest_name}/"
+      },
+      {
+        "target_file": "generated:guest_social_posts",
+        "shortcut_name": "{guest_name} - Guest Social Posts",
+        "location": "Guest Package - {guest_name}/",
+        "target_location": "Social Assets/"
+      }
+    ],
+    "on_repackage": "replace_existing_shortcuts"
+  },
+
+  "final_structure_example": {
+    "description": "Complete folder structure after packaging",
+    "tree": [
+      "{Episode Folder}/",
+      "├── {Guest Name} - Episode Description          [GENERATED - root]",
+      "├── {Guest Name} - Title Options                [GENERATED - root]",
+      "├── {Guest Name} - LHT Social Posts             [GENERATED - root]",
+      "│",
+      "├── Full Length Assets/",
+      "│   ├── {Guest Name} FULL PODCAST 1.mp4         [MOVED from root]",
+      "│   ├── {Guest Name} FULL PODCAST 1.WAV         [MOVED from root]",
+      "│   ├── {Guest Name} FULL PODCAST 1.MP3         [MOVED from root]",
+      "│   └── {Guest Name} Notes & Transcript         [MOVED from root]",
+      "│",
+      "├── Podcast Artwork/                            [CREATED - empty]",
+      "│",
+      "├── Social Assets/",
+      "│   ├── Short 1.mp4                             [MOVED from root]",
+      "│   ├── Short 2.mp4                             [MOVED from root]",
+      "│   ├── Short N.mp4                             [variable count]",
+      "│   └── {Guest Name} - Guest Social Posts       [GENERATED]",
+      "│",
+      "├── Guest Package - {Guest Name}/               [SHORTCUTS ONLY]",
+      "│   ├── {Guest Name} - Full Episode (Audio)     [SHORTCUT → Full Length Assets/]",
+      "│   ├── {Guest Name} - Full Episode (Video)     [SHORTCUT → Full Length Assets/]",
+      "│   ├── {Guest Name} - Episode Description      [SHORTCUT → root]",
+      "│   ├── {Guest Name} - Guest Social Posts       [SHORTCUT → Social Assets/]",
+      "│   ├── Short 1                                 [SHORTCUT → Social Assets/]",
+      "│   └── Short 2                                 [SHORTCUT → Social Assets/]",
+      "│",
+      "└── _Archive/                                   [CREATED on re-package only]",
+      "    ├── {Guest Name} - Episode Description (2025-01-08)",
+      "    └── {Guest Name} - Title Options (2025-01-08)"
+    ]
+  },
+
+  "workflow_phases_updated": [
+    {
+      "id": "preflight",
+      "name": "Pre-flight Check",
+      "executor": "main",
+      "description": "Check if episode is new or already packaged",
+      "outputs": ["packaging_status", "user_choice_if_repackage"],
+      "next": "input|archive|end"
+    },
+    {
+      "id": "archive",
+      "name": "Archive Previous Version",
+      "executor": "main",
+      "condition": "repackage_requested",
+      "description": "Move existing generated files to _Archive folder with date suffix",
+      "next": "input"
+    },
+    {
+      "id": "organize",
+      "name": "File Organization",
+      "executor": "main",
+      "after": "output",
+      "description": "Move files to proper folders, create shortcuts in Guest Package",
+      "next": "deliver"
+    }
+  ],
+
+  "mcp_requirements": {
+    "mcp_server": "google-workspace-extended",
+    "server_source": "fork of taylorwilsdon/google_workspace_mcp",
+    "server_path": "/tmp/podcast-agents/google-workspace-mcp-extended",
+    "tools": [
+      "mcp__google-workspace__list_drive_items",
+      "mcp__google-workspace__create_drive_file",
+      "mcp__google-workspace__update_drive_file",
+      "mcp__google-workspace__create_doc",
+      "mcp__google-workspace__create_drive_shortcut",
+      "mcp__google-workspace__delete_drive_shortcut",
+      "mcp__google-workspace__list_drive_shortcuts"
+    ]
+  }
+}
