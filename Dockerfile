@@ -26,5 +26,8 @@ RUN uv pip install --system -e ".[dev]" && \
 # Expose port
 EXPOSE 8000
 
+# Set Python path to include /app
+ENV PYTHONPATH=/app
+
 # Run the server
-CMD ["python", "-m", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000"]

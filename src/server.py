@@ -13,10 +13,10 @@ from pydantic import BaseModel
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 # Import graphs
-from main_packager.graph import graph as main_graph, PackagerState
-from transcript_analyzer.graph import graph as transcript_graph
-from trend_researcher.graph import graph as trend_graph
-from titling_agent.graph import graph as titling_graph
+from src.main_packager.graph import graph as main_graph, PackagerState
+from src.transcript_analyzer.graph import graph as transcript_graph
+from src.trend_researcher.graph import graph as trend_graph
+from src.titling_agent.graph import graph as titling_graph
 
 
 # Database setup
