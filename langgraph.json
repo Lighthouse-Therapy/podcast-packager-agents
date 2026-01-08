@@ -1,0 +1,18 @@
+{
+  "$schema": "https://langchain-ai.github.io/langgraph/reference/cli/#configuration-file",
+  "dependencies": ["."],
+  "graphs": {
+    "podcast-packager": "./src/main_packager/graph.py:graph",
+    "transcript-analyzer": "./src/transcript_analyzer/graph.py:graph",
+    "trend-researcher": "./src/trend_researcher/graph.py:graph",
+    "titling-agent": "./src/titling_agent/graph.py:graph"
+  },
+  "env": ".env",
+  "python_version": "3.11",
+  "pip_config_file": "pip.conf",
+  "dockerfile_lines": [],
+  "store": {
+    "type": "postgres",
+    "connection_string": "${POSTGRES_CONNECTION_STRING}"
+  }
+}

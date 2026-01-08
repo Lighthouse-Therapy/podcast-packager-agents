@@ -231,9 +231,109 @@ The MCP server requires Google API credentials. Options:
 
 See `/srv/google-workspace-mcp-extended/.env.oauth21` for configuration template.
 
-## Integration with BrightBot DeepAgents
+## Deployment
 
-TBD - Integration details for BrightBot's deep agent framework.
+### LangGraph Application Structure
+
+```
+/tmp/podcast-agents/
+├── langgraph.json              # LangGraph deployment config
+├── pyproject.toml              # Python dependencies
+├── .env.example                # Environment variables template
+│
+├── src/                        # LangGraph Python implementation
+│   ├── main_packager/
+│   │   └── graph.py            # Supervisor graph with HITL
+│   ├── transcript_analyzer/
+│   │   └── graph.py            # Transcript analysis subagent
+│   ├── trend_researcher/
+│   │   └── graph.py            # Trend research subagent
+│   └── titling_agent/
+│       └── graph.py            # Title generation subagent
+│
+├── main-packager/              # Agent specs (source of truth)
+│   ├── agent.json
+│   ├── system_prompt.txt
+│   └── file_organization.json
+│
+├── transcript-analyzer/
+│   ├── agent.json
+│   └── system_prompt.txt
+│
+├── trend-researcher/
+│   ├── agent.json
+│   └── system_prompt.txt
+│
+└── titling-agent/
+    ├── agent.json
+    └── system_prompt.txt
+```
+
+### Local Development
+
+```bash
+# Install dependencies
+pip install -e ".[dev]"
+
+# Copy environment template
+cp .env.example .env
+# Edit .env with your API keys
+
+# Run local dev server
+langgraph dev
+```
+
+### VPS Deployment
+
+```bash
+# On VPS (n8n.lighthouse-therapy.com)
+cd /srv
+git clone https://github.com/Lighthouse-Therapy/podcast-packager-agents.git
+cd podcast-packager-agents
+
+# Set up environment
+cp .env.example .env
+vim .env  # Add production credentials
+
+# Build and run with Docker
+langgraph build -t lht/podcast-packager:latest
+docker run -d \
+  --name podcast-packager \
+  --env-file .env \
+  -p 8125:8000 \
+  lht/podcast-packager:latest
+```
+
+### Integration with BrightBot
+
+The agents expose endpoints via LangGraph Agent Server:
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /runs` | Start a new packaging run |
+| `GET /threads/{thread_id}` | Get thread state (for HITL) |
+| `POST /threads/{thread_id}/runs` | Resume after interrupt |
+| `GET /assistants` | List available assistants |
+
+BrightBot can invoke these agents via:
+1. **Direct API calls** to the Agent Server
+2. **MCP integration** using the `/mcp` endpoint
+3. **n8n workflows** calling the API endpoints
+
+### MCP Server Configuration
+
+The Google Workspace MCP server must be running and accessible:
+
+```bash
+# On VPS
+cd /srv/google-workspace-mcp-extended
+docker-compose up -d
+
+# MCP endpoint available at:
+# http://localhost:8000/mcp
+```
+
+Configure in BrightBot's MCP settings or langgraph.json.
 
 ## Version History
 
